@@ -134,7 +134,6 @@ end
 function RagnarosWarner_Off()
 	RagnarosWarnerFrame:Hide();
 	RagnarosWarnerTooltip:Hide();
-	RagnarosWarnerStatusBar:Hide();
 end
 
 function RagnarosWarner_Print(msg)
