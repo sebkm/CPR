@@ -1,0 +1,6 @@
+## Interface: 11200
+## Title: Ragnaros Warner
+## Version: 0.1
+## Notes: A 11.11 yards range checker.
+## SavedVariablesPerCharacter: RagnarosWarnerStatus_Locked, RagnarosWarnerStatus_Scale, RagnarosWarnerStatus_ShowList
+RagnarosWarner.xml
