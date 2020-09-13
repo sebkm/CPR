@@ -19,8 +19,16 @@ function RagnarosWarner_SlashHandler(arg1)
 	else
 		command = "";
 	end
-	
-	if(command == "lock") then
+
+	if(command == "check15") then
+		if(not IsConsumableAction(1)) then
+			RagnarosWarner_Print("You need a bandage on slot 1 !")
+		else
+			RagnarosWarner_Check(15)
+		end
+	elseif(command == "check28") then
+		RagnarosWarner_Check(28)
+	elseif(command == "lock") then
 		RagnarosWarnerStatus_Locked = 1;
 		RagnarosWarner_Print("|cFFFF9955Position:|r |cFFFFFF00Locked|r.");
 	elseif(command == "unlock") then
@@ -99,6 +107,32 @@ function RagnarosWarner_OnUpdate(arg1)
 		end
 		RagnarosWarner_UpdateList();
 		RagnarosWarnerStatus_LastTimeCheck = RagnarosWarnerStatus_CurrentTime;
+	end
+end
+
+function RagnarosWarner_Check(N)
+	if (not UnitInRaid("player")) then
+		RagnarosWarner_Print("You are not in a raid !")
+		return
+	end
+	local unitid;
+	for i = 1, GetNumRaidMembers(), 1 do
+		unitid = "raid"..i;
+		if(not UnitIsDeadOrGhost(unitid)) then
+			if(not UnitIsUnit(unitid, "player")) then
+				local bool = false
+				if (N == 15) then
+					TargetUnit(unitid)
+					bool = (IsActionInRange(1) == 1)
+				elseif (N == 28) then
+					bool = CheckInteractDistance(unitid, 4)
+				end
+
+				if (bool) then
+					RagnarosWarner_Print(UnitName(unitid).." is too close !")
+				end
+			end
+		end
 	end
 end
 
