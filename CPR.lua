@@ -106,7 +106,10 @@ function CPR_OnUpdate(timeElapsed)
 		unitid = "raid"..i;
 		if (not UnitIsDeadOrGhost(unitid)) and (not UnitIsUnit(unitid, "player")) then
 			TargetUnit(unitid);
-			if IsActionInRange(CPRActionButton) == 1 then
+
+			-- check if bandage is in range and if close enough to follow because if we are too far away IsActionInRange will be 1.
+			if (IsActionInRange(CPRActionButton) == 1) and
+				CheckInteractDistance(unitid, 4) then
 				tinsert(CPRStatus_Players, (UnitName(unitid)));
 			end
 		end
