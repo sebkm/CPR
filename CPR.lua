@@ -31,7 +31,7 @@ function CPR_SlashHandler(arg1)
 		CPRStatus_Locked = 0;
 		CPRFrame:SetScale(2);
 		CPRStatus_Scale = 2;
-		CPRActionButton = 1;
+		CPRActionButton = -1;
 		CPRFrame:ClearAllPoints();
 		CPRFrame:SetPoint("CENTER", "UIParent");
 		CPR_Print("Position reset|r.");
