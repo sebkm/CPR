@@ -1,0 +1,211 @@
+CPRStatus_ShowList = 4;
+CPRStatus_RangeStatus = 0;
+CPRStatus_CurrentTime = 0;
+CPRStatus_LastTimeCheck = 0;
+CPRStatus_Scale = 2;
+CPRStatus_Locked = 0;
+CPRStatus_Players = {};
+CPRActionButton = -1;
+
+function CPR_OnLoad()
+	this:RegisterEvent("VARIABLES_LOADED");
+	SLASH_CPR1 = "/cpr";
+	SlashCmdList["CPR"] = CPR_SlashHandler;
+end
+
+function CPR_SlashHandler(arg1)
+	local _, _, command, args = string.find(arg1, "(%w+)%s?(.*)");
+	if(command) then
+		command = strlower(command);
+	else
+		command = "";
+	end
+
+	if(command == "lock") then
+		CPRStatus_Locked = 1;
+		CPR_Print("Position locked.");
+	elseif(command == "unlock") then
+		CPRStatus_Locked = 0;
+		CPR_Print("Position unlocked.");
+	elseif(command == "reset") then
+		CPRStatus_Locked = 0;
+		CPRFrame:SetScale(2);
+		CPRStatus_Scale = 2;
+		CPRActionButton = 1;
+		CPRFrame:ClearAllPoints();
+		CPRFrame:SetPoint("CENTER", "UIParent");
+		CPR_Print("Position reset|r.");
+	elseif(command == "scale") then
+		if(tonumber(args)) then
+			local newscale = tonumber(args);
+			CPRStatus_Locked = 0;
+			CPRFrame:SetScale(newscale);
+			CPRStatus_Scale = newscale;
+			CPRFrame:ClearAllPoints();
+			CPRFrame:SetPoint("CENTER", "UIParent");
+			CPR_Print("Scale is "..newscale..".");
+		end
+	elseif(command == "button") then
+		local button = tonumber(args);
+		if button < 1 or button > 120 then
+			CPR_Print("Enter a number between 1 and 120.");
+			return;
+		else
+			CPRActionButton = button;
+			CPR_Print("You choose the action button "..button..".");
+		end
+	elseif(command == "list") then
+		if(tonumber(args)) then
+			local newlines = tonumber(args);
+			CPRStatus_ShowList = newlines;
+			CPR_Print("Player List is "..newlines..".");
+		end
+	elseif(command == "help") then
+		CPR_Print("Command List:");
+		DEFAULT_CHAT_FRAME:AddMessage("     /cpr on/off", 0.988, 0.819, 0.086);
+		DEFAULT_CHAT_FRAME:AddMessage("     /cpr button 1..120", 0.988, 0.819, 0.086);
+		DEFAULT_CHAT_FRAME:AddMessage("     /cpr list 0..40", 0.988, 0.819, 0.086);
+		DEFAULT_CHAT_FRAME:AddMessage("     /cpr scale 1..9", 0.988, 0.819, 0.086);
+		DEFAULT_CHAT_FRAME:AddMessage("     /cpr reset", 0.988, 0.819, 0.086);
+		DEFAULT_CHAT_FRAME:AddMessage("     /cpr lock", 0.988, 0.819, 0.086);
+		DEFAULT_CHAT_FRAME:AddMessage("     /cpr unlock", 0.988, 0.819, 0.086);
+	elseif(command == "on") then
+		CPR_On();
+	elseif(command == "off") then
+		CPR_Off();
+	else
+		CPR_Print("Try 'cpr help'.");
+	end
+end
+
+function CPR_OnEvent(event)
+	if(event == "VARIABLES_LOADED") then
+		CPRFrame:SetScale(CPRStatus_Scale);
+	end
+end
+
+function CPR_OnUpdate(timeElapsed)
+	CPRStatus_CurrentTime = CPRStatus_CurrentTime + timeElapsed;
+	if(CPRStatus_CurrentTime < (CPRStatus_LastTimeCheck+0.5)) then
+		return;
+	end
+
+	if (not CPR_HasBandageOnAction()) then
+		CPR_Print("You need a bandage on action button "..CPRActionButton..".");
+		CPR_Off();
+		return;
+	end
+
+	-- saving the target name to later restore the target
+	local targetName = UnitName("target");
+
+	-- range checking loop
+	local unitid;
+	CPRStatus_Players = {};
+	for i = 1, GetNumRaidMembers(), 1 do
+		unitid = "raid"..i;
+		if (not UnitIsDeadOrGhost(unitid)) and (not UnitIsUnit(unitid, "player")) then
+			TargetUnit(unitid);
+			if IsActionInRange(CPRActionButton) == 1 then
+				tinsert(CPRStatus_Players, (UnitName(unitid)));
+			end
+		end
+	end
+
+	-- try to restore the target
+	if (targetName ~= nil) then
+		TargetByName(targetName, true);
+	else
+		ClearTarget();
+	end
+
+	if(getn(CPRStatus_Players) > 0) then
+		CPRStatus_RangeStatus = 1;
+		CPRStatusTexture:SetVertexColor(1,0,0);
+	else
+		CPRStatus_RangeStatus = 0;
+		CPRStatusTexture:SetVertexColor(0,1,0);
+	end
+
+	CPR_UpdateList();
+	CPRStatus_LastTimeCheck = CPRStatus_CurrentTime;
+end
+
+function CPR_UpdateList()
+	CPRTooltip:SetOwner(CPRFrame, "ANCHOR_BOTTOMRIGHT");
+	CPRTooltip:SetFrameStrata("MEDIUM");
+	if(CPRStatus_RangeStatus == 0 or CPRStatus_ShowList == 0) then
+		CPRTooltip:Hide();
+	else
+		CPRTooltip:ClearLines();
+		CPRTooltip:AddLine("Linking:",0.890,0.811,0.341,0);
+		local index = 1;
+		for key, player in CPRStatus_Players do
+			for i=1,MAX_RAID_MEMBERS do
+				local partyid = "raid"..i;
+				if((player == (UnitName(partyid))) and UnitExists(partyid) and UnitInParty(partyid)) then
+					CPRTooltip:AddLine("- "..player,0.666,0.666,1,0);
+				else
+					if((player == (UnitName(partyid))) and UnitExists(partyid) and not UnitInParty(partyid)) then
+						CPRTooltip:AddLine("- "..player,1,0.498,0,0);
+					end
+				end
+			end
+			if(index >= CPRStatus_ShowList) then
+				break;
+			end
+			index = index + 1;
+		end
+		CPRTooltip:Show();
+	end
+end
+
+function CPR_HasBandageOnAction()
+	local texturePath = GetActionTexture(CPRActionButton);
+	return (texturePath ~= nil and string.find(texturePath, "Bandage") ~= nil);
+end
+
+function CPR_SetupBandage()
+	for i = 0,4 do
+		for j = 1, GetContainerNumSlots(i) do
+			local texturePath = GetContainerItemInfo(i, j)
+			if (texturePath ~= nil and string.find(texturePath, "Bandage") ~= nil) then
+				PickupContainerItem(i, j);
+				PlaceAction(CPRActionButton);
+				ClearCursor();
+				return true;
+			end
+		end
+	end
+	return false;
+end
+
+function CPR_On()
+	if (CPRActionButton < 1 or CPRActionButton > 120) then
+		message("Choose an action button with '/cpr button X' where X is the button id you want.");
+		return;
+	end
+	
+	local found = true;
+	if (not CPR_HasBandageOnAction()) then
+		found = CPR_SetupBandage();
+	end
+
+	if found then
+		CPRFrame:Show();
+		CPR_Print("On.");
+	else
+		message("You need a bandage in your bag !");
+	end
+end
+
+function CPR_Off()
+	CPRFrame:Hide();
+	CPRTooltip:Hide();
+	CPR_Print("Off.");
+end
+
+function CPR_Print(msg)
+	local prefix = "|cFFFF9955CPR: |r"
+	DEFAULT_CHAT_FRAME:AddMessage(prefix..msg, 0.988, 0.819, 0.086);
+end

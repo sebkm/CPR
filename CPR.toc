@@ -1,0 +1,6 @@
+## Interface: 11200
+## Title:  La Chaleur Persistante de Ragnaros 
+## Version: 0.2
+## Notes: A 15 yards range checker.
+## SavedVariablesPerCharacter: CPRStatus_Locked, CPRStatus_Scale, CPRStatus_ShowList, CPRActionButton
+CPR.xml
