@@ -5,7 +5,7 @@ CPRStatus_LastTimeCheck = 0;
 CPRStatus_Scale = 2;
 CPRStatus_Locked = 0;
 CPRStatus_Players = {};
-CPRActionButton = -1;
+CPRActionButton = 120;
 
 function CPR_OnLoad()
 	this:RegisterEvent("VARIABLES_LOADED");
@@ -82,11 +82,17 @@ function CPR_OnEvent(event)
 	if(event == "VARIABLES_LOADED") then
 		CPRFrame:SetScale(CPRStatus_Scale);
 	end
+
+	-- slot 120 (default) is already in use for druids
+	local _, PlayerClass = UnitClass("player");
+	if PlayerClass == "DRUID" then
+		CPRActionButton = -1;
+	end
 end
 
 function CPR_OnUpdate(timeElapsed)
 	CPRStatus_CurrentTime = CPRStatus_CurrentTime + timeElapsed;
-	if(CPRStatus_CurrentTime < (CPRStatus_LastTimeCheck+0.5)) then
+	if(CPRStatus_CurrentTime < (CPRStatus_LastTimeCheck + 1)) then
 		return;
 	end
 
@@ -100,26 +106,29 @@ function CPR_OnUpdate(timeElapsed)
 	local targetName = UnitName("target");
 
 	-- range checking loop
-	local unitid;
 	CPRStatus_Players = {};
 	for i = 1, GetNumRaidMembers(), 1 do
-		unitid = "raid"..i;
-		if (not UnitIsDeadOrGhost(unitid)) and (not UnitIsUnit(unitid, "player")) then
-			TargetUnit(unitid);
+		local unitid = "raid"..i;
+		local unitName, _ = UnitName(unitid);
 
-			-- check if bandage is in range and if close enough to follow because if we are too far away IsActionInRange will be 1.
-			if (IsActionInRange(CPRActionButton) == 1) and
-				CheckInteractDistance(unitid, 4) then
-				tinsert(CPRStatus_Players, (UnitName(unitid)));
+		if (not UnitIsDeadOrGhost(unitid)) and (not UnitIsUnit(unitid, "player")) then
+			if CheckInteractDistance(unitid, 2) then -- less than 11.11 yards
+				tinsert(CPRStatus_Players, unitName);
+			elseif CheckInteractDistance(unitid, 4) then -- less than 28 yards
+				-- check if bandage is in range (15 yards)
+				TargetUnit(unitid);
+				if (IsActionInRange(CPRActionButton) == 1) then
+					tinsert(CPRStatus_Players, unitName);
+				end
+
+				-- restore the target
+				if not targetName then
+					ClearTarget();
+				elseif targetName ~= unitName then
+					TargetLastTarget();
+				end
 			end
 		end
-	end
-
-	-- try to restore the target
-	if (targetName ~= nil) then
-		TargetByName(targetName, true);
-	else
-		ClearTarget();
 	end
 
 	if(getn(CPRStatus_Players) > 0) then
@@ -143,17 +152,8 @@ function CPR_UpdateList()
 		CPRTooltip:ClearLines();
 		CPRTooltip:AddLine("Linking:",0.890,0.811,0.341,0);
 		local index = 1;
-		for key, player in CPRStatus_Players do
-			for i=1,MAX_RAID_MEMBERS do
-				local partyid = "raid"..i;
-				if((player == (UnitName(partyid))) and UnitExists(partyid) and UnitInParty(partyid)) then
-					CPRTooltip:AddLine("- "..player,0.666,0.666,1,0);
-				else
-					if((player == (UnitName(partyid))) and UnitExists(partyid) and not UnitInParty(partyid)) then
-						CPRTooltip:AddLine("- "..player,1,0.498,0,0);
-					end
-				end
-			end
+		for _, player in CPRStatus_Players do
+			CPRTooltip:AddLine("- "..player,0.666,0.666,1,0);
 			if(index >= CPRStatus_ShowList) then
 				break;
 			end
